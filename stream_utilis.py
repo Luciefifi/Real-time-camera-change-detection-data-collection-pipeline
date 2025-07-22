@@ -1,7 +1,15 @@
-import cv2
-import numpy as np
-import time
-from collections import deque
+# file: stream_utilis.py
+# author: Lucie 
+# date: 2025-07-15
+# functions : compare_image_optical_flow , compute_optical_flow, video_stream_webcam
+# description : this file contains codes that captures video from a webcome, resize frames to a standard resolution (640*480) and computes optical flow(the motion flow between two frames) uwsing franeback method
+#               it maintains a queue of two frames to compare them and generates a normalized grayscale image for representing motion intensity
+
+
+import cv2 # for video capture and frame processing
+import numpy as np # for numerical operations
+import time # for time measurement
+from collections import deque # for maintaining a queue of frames
 
 # Define standard resolution
 WIDTH_STANDARD = 640
@@ -16,6 +24,7 @@ FLAGS = {"OBJECT_DETECTING": False}
 def compare_images_optical_flow(img1, img2):
     """
     Compares two images and returns a grayscale image of flow magnitude.
+    computes optical flow between two RGB images (img1, img2) and returns a grayscale image representing the magnitude motion
     """
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
@@ -34,13 +43,13 @@ def compute_optical_flow(mean_norm=None):
     else:
         mean_norm = float(mean_norm)
 
-    FLAGS["OBJECT_DETECTING"] = False
+    FLAGS["OBJECT_DETECTING"] = False # disables object detection mode to allow optical flow computation
 
     while True:
         if len(frame_stack) > 1 and not FLAGS["OBJECT_DETECTING"]:
-            prev_frame, curr_frame = frame_stack
+            prev_frame, curr_frame = frame_stack # getting the previous and current frames from frame stack
 
-            # Resize to smaller resolution for faster optical flow
+            # Resize both current and previous frame to smaller resolution for faster optical flow 
             prev_resized = cv2.resize(prev_frame, (WIDTH_STANDARD // 4, HEIGHT_STANDARD // 4))
             curr_resized = cv2.resize(curr_frame, (WIDTH_STANDARD // 4, HEIGHT_STANDARD // 4))
 

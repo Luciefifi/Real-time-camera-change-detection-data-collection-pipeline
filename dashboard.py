@@ -1,4 +1,8 @@
-import gradio as gr
+# filename: dashboard.py
+# author: Lucie
+# date: 2025-07-15
+# description: creates a simple web interface using Gradio to show a live webcam feed, detect motion, and display saved images
+import gradio as gr 
 import glob
 import os
 import cv2
