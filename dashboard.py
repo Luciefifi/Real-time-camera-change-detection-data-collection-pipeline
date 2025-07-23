@@ -14,26 +14,23 @@ from image_saver import start_periodic_image_saving, stop_periodic_image_saving
 
 
 def change_detection_stream(dummy=None):
-    detected_frame = np.zeros((256, 256, 3), dtype=np.uint8) + 127
-    from stream_utilis import flow_magnitude_normalized, FLAGS
+    detected_frame = np.zeros((128, 512, 3), dtype=np.uint8) + 127
+    from stream_utilis import FLAGS
     while True:
         if len(frame_stack) > 1:
             FLAGS["OBJECT_DETECTING"] = True
-            frame = frame_stack[-1]
-            ret, thresh = cv2.threshold((flow_magnitude_normalized * 255).astype(np.uint8), 127, 255, 0)
-            contours_tuple = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            contours = contours_tuple[0] if len(contours_tuple) == 2 else contours_tuple[1]
-            detected_frame = frame.copy()
-            for contour in contours:
-                x, y, w, h = cv2.boundingRect(contour)
-                cv2.rectangle(detected_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            FLAGS["OBJECT_DETECTING"] = False
-        yield detected_frame
+            from stream_utilis import flow_magnitude_normalized
+            mean_OF_string = f"Mean Optical Flow: {flow_magnitude_normalized.mean():.4f}"
+            detected_frame_new = cv2.putText(detected_frame.copy(), mean_OF_string, (10, 64), 
+                                         cv2.FONT_HERSHEY_SIMPLEX, 1, 
+                                         (10, 10, 255), 1, cv2.LINE_AA)
         FLAGS["OBJECT_DETECTING"] = False
+        yield detected_frame_new
 
 
 def get_recent_images_gallery(n=10):
-    images = sorted(glob.glob("data/captured_images/*.jpg"), key=os.path.getmtime, reverse=True)
+    from image_saver import SAVE_FOLDER
+    images = sorted(glob.glob(os.path.join(SAVE_FOLDER,"*.jpg")), key=os.path.getmtime, reverse=True)
     return images[:n]
 
 
@@ -72,7 +69,6 @@ with gr.Blocks() as demo:
                 outputs="image"
             )
 
-    with gr.Row():
         with gr.Column():
             detection_img = gr.Interface(
                 change_detection_stream,
@@ -83,7 +79,10 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             interval_slider = gr.Slider(minimum=1, maximum=60, value=5, label="Save Every (sec)")
+            background_interval_seconds = gr.Number(label="Background Save Interval (sec)", value=60, precision=0)
             mean_slider = gr.Slider(minimum=0.01, maximum=1.0, value=0.1, label="Change Sensitivity (Optical Flow Mean Threshold)")
+            max_slider = gr.Slider(minimum=0.01, maximum=1.0, value=0.7, label="MAX Change torelable (MAX Optical Flow Mean Threshold)")
+            save_subfolder = gr.Textbox(label="Save Subfolder (optional)", placeholder="e.g., camera1", value=None)
             start_button = gr.Button("▶ Start Saving")
             stop_button = gr.Button("⏹ Stop Saving")
             status = gr.Textbox(label="Status", interactive=False)
@@ -94,7 +93,9 @@ with gr.Blocks() as demo:
 
     start_button.click(
         fn=start_periodic_image_saving,
-        inputs=[interval_slider, mean_slider],
+        inputs=[interval_slider, mean_slider, max_slider,
+                background_interval_seconds, save_subfolder
+                ],
         outputs=status
     )
 

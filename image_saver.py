@@ -44,8 +44,22 @@ This function starts a loop that saves a webcam picture (frame) to the data/capt
 It also sets a counter to keep track of the number of frames saved.
 
 """
-def start_periodic_image_saving(interval_seconds=2, mean_norm=0.4):
+def start_periodic_image_saving(interval_seconds=2, 
+                                mean_norm=0.4, 
+                                # Sometimes, a strangely huge change can be detected (e.g., someone passing by), 
+                                # so we set a max threshold for the mean of the flow magnitude normalized.
+                                max_mean_norm=.7, #  default is 0.7
+                                # interval in seconds between saving background images
+                                background_interval_seconds = BACKGROUND_INTERVAL_SECONDS, 
+                                save_subfolder = None, # Each camera will save in its own subfolder, if provided.
+                                ):
     global collecting_images, last_background_save_time, background_saving, background_frame_count
+    global SAVE_FOLDER
+    if (save_subfolder is not None) and (len(save_subfolder.strip()) != 0): # if a subfolder is provided, we create it inside the SAVE_FOLDER
+        SAVE_FOLDER = os.path.join(SAVE_FOLDER, save_subfolder)
+        os.makedirs(SAVE_FOLDER, exist_ok=True) # create the folder if it doesn't exist
+    else:
+        SAVE_FOLDER = "data/captured_images"
     collecting_images = True # setting the flag to True to start collecting frames
 
     def save_loop():
@@ -53,8 +67,6 @@ def start_periodic_image_saving(interval_seconds=2, mean_norm=0.4):
         saving_change_frames = False
         last_change_save_time = 0
 # importing flow_magnitude_normalized from stream_utilis
-        from stream_utilis import flow_magnitude_normalized
-
         while collecting_images: # looping until the flag is set to False
             if len(frame_stack) == 0: # checking if the frame stack is empty
                 time.sleep(0.1) # waiting for 0.1 seconds before checking again
@@ -63,13 +75,20 @@ def start_periodic_image_saving(interval_seconds=2, mean_norm=0.4):
             frame = frame_stack[-1] # getting the last frame from the frame stack
 
             if len(frame_stack) > 1: # checking if there are more than one frames in the frame stack
+                
+                from stream_utilis import flow_magnitude_normalized # Moved it here to make sure that it's update when accessed.
+                frame_0, frame_1 = frame_stack[-2], frame_stack[-1] # getting the last two frames from the frame stack
                 current_mean = flow_magnitude_normalized.mean() # getting the mean of the flow magnitude normalized
-                if current_mean >= float(mean_norm): # checking if the mean is greater than or equal to the threshold which is mean_norm
+                # Here, we are checking if the mean is greater than or equal to the threshold 
+                # and less than or equal to the max threshold
+                if (current_mean >= float(mean_norm)) and (current_mean <= float(max_mean_norm)): 
                     if not saving_change_frames: # checking if the flag is False
                         print(f"[info] Change detected (mean={current_mean:.3f} ≥ threshold={mean_norm}), saving started.")
                         saving_change_frames = True
                     if time.time() - last_change_save_time >= interval_seconds:
-                        save_image(frame, prefix="change")
+                        # We need to save two consecutive images
+                        save_image(frame_0, prefix="change")
+                        save_image(frame_1, prefix="change")
                         last_change_save_time = time.time()
                 else: # if the mean is less than the threshold
                     if saving_change_frames: 
@@ -77,7 +96,7 @@ def start_periodic_image_saving(interval_seconds=2, mean_norm=0.4):
                     saving_change_frames = False
 
             current_time = time.time()
-            if current_time - last_background_save_time >= BACKGROUND_INTERVAL_SECONDS: # checking if the time difference is greater than or equal to the interval  
+            if current_time - last_background_save_time >= background_interval_seconds: # checking if the time difference is greater than or equal to the interval  
                 background_saving = True # set the flag to true to start saving the background frames
                 background_frame_count = 0
                 last_background_save_time = current_time
@@ -93,7 +112,7 @@ def start_periodic_image_saving(interval_seconds=2, mean_norm=0.4):
 
     t = threading.Thread(target=save_loop, daemon=True)
     t.start()
-    return f"Saving started (interval={interval_seconds}s, threshold={mean_norm})"
+    return f"Saving started (interval={interval_seconds}s, threshold=[{mean_norm}, {max_mean_norm}]) in folder: {SAVE_FOLDER}"
 
 def stop_periodic_image_saving():
     global collecting_images
