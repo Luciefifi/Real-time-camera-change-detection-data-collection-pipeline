@@ -19,7 +19,10 @@ HEIGHT_STANDARD = 480
 frame_stack = deque(maxlen=2)
 fall_back_frame = np.zeros((HEIGHT_STANDARD, WIDTH_STANDARD, 3), dtype=np.uint8) + 127
 flow_magnitude_normalized = np.zeros((HEIGHT_STANDARD, WIDTH_STANDARD), dtype=np.float32)
-FLAGS = {"OBJECT_DETECTING": False}
+FLAGS = {"OBJECT_DETECTING": False,
+         "SAVING_NEUTRALS": False,
+            "SAVING_CHANGES": False,
+         }
 
 def compare_images_optical_flow(img1, img2):
     """
@@ -46,7 +49,7 @@ def compute_optical_flow(mean_norm=None):
     FLAGS["OBJECT_DETECTING"] = False # disables object detection mode to allow optical flow computation
 
     while True:
-        if len(frame_stack) > 1 and not FLAGS["OBJECT_DETECTING"]:
+        if (len(frame_stack) > 1) and (not FLAGS["OBJECT_DETECTING"]) and (not FLAGS["SAVING_NEUTRALS"]) and (not FLAGS["SAVING_CHANGES"]):
             prev_frame, curr_frame = frame_stack # getting the previous and current frames from frame stack
 
             # Resize both current and previous frame to smaller resolution for faster optical flow 
