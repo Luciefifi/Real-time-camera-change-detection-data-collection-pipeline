@@ -16,13 +16,14 @@ import threading # for background saving
 from stream_utilis import frame_stack, FLAGS
 
 SAVE_FOLDER = "data/captured_images" # folder where the all frames will be saved
+SAVE_FOLDER_ORIGINAL = SAVE_FOLDER # original folder path to save the frames, used to create subfolders for each camera
 os.makedirs(SAVE_FOLDER, exist_ok=True) # create the folder if it doesn't exist
 
 collecting_images = False # flag to indicate if we are currently collecting images or not , initially set to False
 BACKGROUND_INTERVAL_SECONDS = 60 # interval in seconds between saving background images
 NEUTRAL_FRAMES_TO_SAVE = 10 # number of neutral frames to save when not detecting motion
 last_background_save_time = time.time() # time of the last background save
-background_saving = False # flag to indicate if we are currently saving a background image or not
+FLAGS["SAVING_NEUTRALS"] = False # flag to indicate if we are currently saving a background image or not
 background_frame_count = 0
 
 """
@@ -53,62 +54,65 @@ def start_periodic_image_saving(interval_seconds=2,
                                 background_interval_seconds = BACKGROUND_INTERVAL_SECONDS, 
                                 save_subfolder = None, # Each camera will save in its own subfolder, if provided.
                                 ):
-    global collecting_images, last_background_save_time, background_saving, background_frame_count
-    global SAVE_FOLDER
+    print(f"interval_seconds: {interval_seconds}")
+    global collecting_images, last_background_save_time, background_frame_count
+    global SAVE_FOLDER, SAVE_FOLDER_ORIGINAL
     if (save_subfolder is not None) and (len(save_subfolder.strip()) != 0): # if a subfolder is provided, we create it inside the SAVE_FOLDER
-        SAVE_FOLDER = os.path.join(SAVE_FOLDER, save_subfolder)
+        SAVE_FOLDER = os.path.join(SAVE_FOLDER_ORIGINAL, save_subfolder)
         os.makedirs(SAVE_FOLDER, exist_ok=True) # create the folder if it doesn't exist
     else:
-        SAVE_FOLDER = "data/captured_images"
+        SAVE_FOLDER = SAVE_FOLDER_ORIGINAL
     collecting_images = True # setting the flag to True to start collecting frames
 
     def save_loop():
-        global last_background_save_time, background_saving, background_frame_count
-        saving_change_frames = False
+        global last_background_save_time, background_frame_count
+        FLAGS["SAVING_CHANGES"] = False
         last_change_save_time = 0
 # importing flow_magnitude_normalized from stream_utilis
         while collecting_images: # looping until the flag is set to False
-            if len(frame_stack) == 0: # checking if the frame stack is empty
-                time.sleep(0.1) # waiting for 0.1 seconds before checking again
-                continue
 
-            frame = frame_stack[-1] # getting the last frame from the frame stack
-
-            if len(frame_stack) > 1: # checking if there are more than one frames in the frame stack
-                
+            if (len(frame_stack) > 1) and not(FLAGS["SAVING_NEUTRALS"]): # checking if there are more than one frames in the frame stack
                 from stream_utilis import flow_magnitude_normalized # Moved it here to make sure that it's update when accessed.
-                frame_0, frame_1 = frame_stack[-2], frame_stack[-1] # getting the last two frames from the frame stack
                 current_mean = flow_magnitude_normalized.mean() # getting the mean of the flow magnitude normalized
                 # Here, we are checking if the mean is greater than or equal to the threshold 
                 # and less than or equal to the max threshold
-                if (current_mean >= float(mean_norm)) and (current_mean <= float(max_mean_norm)): 
-                    if not saving_change_frames: # checking if the flag is False
+                if (current_mean > float(mean_norm)) and (current_mean < float(max_mean_norm)): 
+                    if not FLAGS["SAVING_CHANGES"]: # checking if the flag is False
                         print(f"[info] Change detected (mean={current_mean:.3f} ≥ threshold={mean_norm}), saving started.")
-                        saving_change_frames = True
-                    if time.time() - last_change_save_time >= interval_seconds:
+                        FLAGS["SAVING_CHANGES"] = True
+                    if (time.time() - last_change_save_time) > interval_seconds:
                         # We need to save two consecutive images
-                        save_image(frame_0, prefix="change")
-                        save_image(frame_1, prefix="change")
+                        frame_1 = frame_stack.pop() # getting the last frame from the frame stack and removing it
+                        frame_0 = frame_stack.pop() # getting the second last frame from the frame stack and removing it 
+                        save_image(frame_0, prefix="change_0_")
+                        save_image(frame_1, prefix="change_1_")
+
                         last_change_save_time = time.time()
                 else: # if the mean is less than the threshold
-                    if saving_change_frames: 
+                    if FLAGS["SAVING_CHANGES"]: 
                         print(f"[info] No change detected (mean={current_mean:.3f} < threshold={mean_norm}), stopped.")
-                    saving_change_frames = False
+                    FLAGS["SAVING_CHANGES"] = False
+
 
             current_time = time.time()
             if current_time - last_background_save_time >= background_interval_seconds: # checking if the time difference is greater than or equal to the interval  
-                background_saving = True # set the flag to true to start saving the background frames
+                
+                FLAGS["SAVING_NEUTRALS"] = True # set the flag to true to start saving the background frames
                 background_frame_count = 0
                 last_background_save_time = current_time
 # checking if backgoud saving flag is true , the saved frames will have neutral prefix
-            if background_saving:
+            if (len(frame_stack) == 0) and FLAGS["SAVING_NEUTRALS"]:
+                print("[DUMMY] STACK EMPTY! ...")
+            if FLAGS["SAVING_NEUTRALS"] and (len(frame_stack) > 0):
+                frame = frame_stack.pop() # getting the last frame from the frame stack
+                print(f"[info] Saving background frame; count: {background_frame_count}")
                 save_image(frame, prefix="neutral")
                 background_frame_count += 1
                 if background_frame_count >= NEUTRAL_FRAMES_TO_SAVE:
-                    background_saving = False
+                    FLAGS["SAVING_NEUTRALS"] = False
                     print("[info] Finished background frame capture.")
 
-            time.sleep(0.1)
+            time.sleep(interval_seconds)
 
     t = threading.Thread(target=save_loop, daemon=True)
     t.start()

@@ -45,6 +45,10 @@ def resize_with_aspect_ratio(frame):
         new_w = int(HEIGHT_STANDARD * aspect)
     return cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
+def handle_frame(frame):
+    from stream_utilis import frame_stack
+    resized_frame = resize_with_aspect_ratio(frame)
+    frame_stack.append(resized_frame)
 
 # Launch Gradio UI
 with gr.Blocks() as demo:
@@ -52,20 +56,20 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         with gr.Column():
-            webcam_img = gr.Image(label="📷 Webcam", sources="webcam")
+            webcam_img = gr.Image(label="📷 Webcam", sources="webcam")   
             webcam_img.stream(
-                fn=lambda frame: frame_stack.append(resize_with_aspect_ratio(frame)),
+                fn=handle_frame,
                 inputs=webcam_img,
                 outputs=None,
-                time_limit=15,
+                time_limit=1,
                 stream_every=1.0,
-                concurrency_limit=30
+                concurrency_limit=1
             )
 
         with gr.Column():
             optical_flow_img = gr.Interface(
                 compute_optical_flow,
-                inputs=gr.Slider(label="Optical Flow: Noise Tolerance", minimum=0.0, maximum=1.0, value=0.4),
+                inputs=gr.Slider(label="Optical Flow: DUMMY PARAMETER", minimum=0.0, maximum=1.0, value=0.4),
                 outputs="image"
             )
 
@@ -78,7 +82,7 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         with gr.Column():
-            interval_slider = gr.Slider(minimum=1, maximum=60, value=5, label="Save Every (sec)")
+            interval_slider = gr.Slider(minimum=0.5, maximum=2, value=1, label="Save Every (sec)")
             background_interval_seconds = gr.Number(label="Background Save Interval (sec)", value=60, precision=0)
             mean_slider = gr.Slider(minimum=0.01, maximum=1.0, value=0.1, label="Change Sensitivity (Optical Flow Mean Threshold)")
             max_slider = gr.Slider(minimum=0.01, maximum=1.0, value=0.7, label="MAX Change torelable (MAX Optical Flow Mean Threshold)")
