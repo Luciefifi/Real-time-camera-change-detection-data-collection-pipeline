@@ -16,9 +16,9 @@ The dashboard.py file creates a simple web interface using Gradio to show a live
 5. Click the "🔄 Refresh Gallery" button to update the captured images gallery.
 
 ### Notes
-- The dashboard interacts with the `stream_utilis.py` and `image_saver.py` files.
+- The dashboard interacts with the `stream_utils.py` and `image_saver.py` files.
 - Images are saved in the `data/captured_images` folder with timestamps.
 - Background images are saved every 60 seconds to capture the background.
 - Motion-detected images are saved with a "change" prefix.
 
-For more details, refer to the code comments in the `dashboard.py`, `stream_utilis.py`, and `image_saver.py` files.
+For more details, refer to the code comments in the `dashboard.py`, `stream_utils.py`, and `image_saver.py` files.

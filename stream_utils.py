@@ -1,4 +1,4 @@
-# file: stream_utilis.py
+# file: stream_utils.py
 # author: Lucie 
 # date: 2025-07-15
 # functions : compare_image_optical_flow , compute_optical_flow, video_stream_webcam
