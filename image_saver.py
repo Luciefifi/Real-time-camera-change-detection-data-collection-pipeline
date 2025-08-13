@@ -2,7 +2,7 @@
 # author: Lucie 
 # date: 2025-07-15
 # functions: save_image, start_periodic_image_saving, save_loop, stop_periodic_image_saving
-# description: saves pictures from a webcam stream, working with stream_utilis.py.
+# description: saves pictures from a webcam stream, working with stream_utils.py.
 #              It saves two types of pictures: change pictures when it detects movement (using motion data) and "neutral" pictures every 60 seconds to capture the background . 
 #              Pictures are saved in the data/captured_images folder with timestamps. The script runs in the background so it doesn’t slow down the video
 
@@ -12,8 +12,8 @@ import time # for timestamps
 from datetime import datetime # for timestamps
 import threading # for background saving
 
-# importing frame_stack and FLAGS from stream_utilis.py
-from stream_utilis import frame_stack, FLAGS
+# importing frame_stack and FLAGS from stream_utils.py
+from stream_utils import frame_stack, FLAGS
 
 SAVE_FOLDER = "data/captured_images" # folder where the all frames will be saved
 SAVE_FOLDER_ORIGINAL = SAVE_FOLDER # original folder path to save the frames, used to create subfolders for each camera
@@ -68,11 +68,11 @@ def start_periodic_image_saving(interval_seconds=2,
         global last_background_save_time, background_frame_count
         FLAGS["SAVING_CHANGES"] = False
         last_change_save_time = 0
-# importing flow_magnitude_normalized from stream_utilis
+# importing flow_magnitude_normalized from stream_utils
         while collecting_images: # looping until the flag is set to False
 
             if (len(frame_stack) > 1) and not(FLAGS["SAVING_NEUTRALS"]): # checking if there are more than one frames in the frame stack
-                from stream_utilis import flow_magnitude_normalized # Moved it here to make sure that it's update when accessed.
+                from stream_utils import flow_magnitude_normalized # Moved it here to make sure that it's update when accessed.
                 current_mean = flow_magnitude_normalized.mean() # getting the mean of the flow magnitude normalized
                 # Here, we are checking if the mean is greater than or equal to the threshold 
                 # and less than or equal to the max threshold

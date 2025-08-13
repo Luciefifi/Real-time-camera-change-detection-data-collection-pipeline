@@ -9,17 +9,17 @@ import cv2
 import numpy as np
 from datetime import datetime
 
-from stream_utilis import frame_stack, compute_optical_flow, WIDTH_STANDARD, HEIGHT_STANDARD
+from stream_utils import frame_stack, compute_optical_flow, WIDTH_STANDARD, HEIGHT_STANDARD
 from image_saver import start_periodic_image_saving, stop_periodic_image_saving
 
 
 def change_detection_stream(dummy=None):
     detected_frame = np.zeros((128, 512, 3), dtype=np.uint8) + 127
-    from stream_utilis import FLAGS
+    from stream_utils import FLAGS
     while True:
         if len(frame_stack) > 1:
             FLAGS["OBJECT_DETECTING"] = True
-            from stream_utilis import flow_magnitude_normalized
+            from stream_utils import flow_magnitude_normalized
             mean_OF_string = f"Mean Optical Flow: {flow_magnitude_normalized.mean():.4f}"
             detected_frame_new = cv2.putText(detected_frame.copy(), mean_OF_string, (10, 64), 
                                          cv2.FONT_HERSHEY_SIMPLEX, 1, 
@@ -46,7 +46,7 @@ def resize_with_aspect_ratio(frame):
     return cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
 def handle_frame(frame):
-    from stream_utilis import frame_stack
+    from stream_utils import frame_stack
     resized_frame = resize_with_aspect_ratio(frame)
     frame_stack.append(resized_frame)
 
